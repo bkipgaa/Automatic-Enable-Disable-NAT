@@ -1,0 +1,90 @@
+check-and-toggle-nat1
+
+  # IP to ping
+  :local ipToPing "172.16.254.1"
+
+  # NAT rule to toggle based on ping result
+  :local natRule "NAT1"
+
+  # Perform the ping
+  :local pingResult [/ping address=$ipToPing count=3 interval=1s]
+
+  # Check if the IP is reachable
+  :if ($pingResult = 0) do={
+    # Disable the NAT rule if not reachable
+    /ip firewall nat set [find comment=$natRule] disabled=yes
+    :log warning "Ping to $ipToPing failed. Disabling NAT rule $natRule."
+  } else={
+    # Enable the NAT rule if reachable
+    /ip firewall nat set [find comment=$natRule] disabled=no
+    :log info "Ping to $ipToPing succeeded. Enabling NAT rule $natRule."
+  }
+
+
+enable-nat1-on-ping
+
+  :local ipToPing "172.16.254.1"
+  :local natRule "NAT1"
+  
+  # Perform the ping
+  :local pingResult [/ping address=$ipToPing count=3 interval=1s]
+  
+  # Check if the IP is reachable
+  :if ($pingResult > 0) do={
+    /ip firewall nat set [find comment=$natRule] disabled=no
+    :log info "Ping to $ipToPing succeeded. Enabling NAT rule $natRule."
+  } else={
+    :log warning "Ping to $ipToPing failed. NAT rule $natRule remains disabled."
+  }
+
+SCRIPT 1
+
+/system script
+add name="check-and-toggle-nat1" policy=read,write,test source="
+  # IP to ping
+  :local ipToPing \"172.16.254.1\"
+
+  # NAT rule to toggle based on ping result
+  :local natRule \"NAT1\"
+
+  # Perform the ping
+  :local pingResult [/ping address=\$ipToPing count=3 interval=1s]
+
+  # Check if the IP is reachable
+  :if (\$pingResult = 0) do={
+    # Disable the NAT rule if not reachable
+    /ip firewall nat set [find comment=\$natRule] disabled=yes
+    :log warning \"Ping to \$ipToPing failed. Disabling NAT rule \$natRule.\"
+  } else={
+    # Enable the NAT rule if reachable
+    /ip firewall nat set [find comment=\$natRule] disabled=no
+    :log info \"Ping to \$ipToPing succeeded. Enabling NAT rule \$natRule.\"
+  }
+"
+
+script 4
+
+/system script
+add name="enable-nat1-on-ping" policy=read,write,test source="
+  :local ipToPing \"172.16.254.1\"
+  :local natRule \"NAT1\"
+  
+  # Perform the ping
+  :local pingResult [/ping address=\$ipToPing count=3 interval=1s]
+  
+  # Check if the IP is reachable
+  :if (\$pingResult > 0) do={
+    /ip firewall nat set [find comment=\$natRule] disabled=no
+    :log info \"Ping to \$ipToPing succeeded. Enabling NAT rule \$natRule.\"
+  } else={
+    :log warning \"Ping to \$ipToPing failed. NAT rule \$natRule remains disabled.\"
+  }
+"
+
+netwatch for up
+
+/system script run enable-nat1-on-ping
+
+
+netwatch for down
+/system script run check-and-toggle-nat1
